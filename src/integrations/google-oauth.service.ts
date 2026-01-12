@@ -129,6 +129,10 @@ export class GoogleOAuthService {
     }
 
     const tokens = await this.exchangeCodeForTokens(query.code, stateRecord.redirectUri);
+    const profile = await this.fetchGoogleProfile(tokens.access_token).catch((error) => {
+      this.logger.warn(`Nao foi possivel obter perfil do Google: ${error}`);
+      return null;
+    });
 
     const expiryDate =
       typeof tokens.expires_in === 'number'
@@ -150,7 +154,9 @@ export class GoogleOAuthService {
           tokenType: tokens.token_type ?? null,
           scope: tokens.scope ?? null,
           expiryDate,
-          rawTokens
+          rawTokens,
+          email: profile?.email ?? null,
+          googleUserId: profile?.id ?? profile?.sub ?? null
         }
       });
     } else {
@@ -159,12 +165,16 @@ export class GoogleOAuthService {
         data: {
           accessToken: tokens.access_token,
           tokenType: tokens.token_type ?? existingAccount.tokenType ?? undefined,
-      scope: tokens.scope ?? existingAccount.scope ?? undefined,
-      expiryDate: expiryDate ?? existingAccount.expiryDate ?? undefined,
-      rawTokens,
-      ...(tokens.refresh_token ? { refreshToken: tokens.refresh_token } : {})
-    }
-  });
+          scope: tokens.scope ?? existingAccount.scope ?? undefined,
+          expiryDate: expiryDate ?? existingAccount.expiryDate ?? undefined,
+          rawTokens,
+          ...(tokens.refresh_token ? { refreshToken: tokens.refresh_token } : {}),
+          ...(profile?.email ? { email: profile.email } : {}),
+          ...(profile?.id || profile?.sub
+            ? { googleUserId: profile.id ?? profile.sub ?? existingAccount.googleUserId ?? undefined }
+            : {})
+        }
+      });
     }
 
     await this.prisma.googleOAuthState.update({
@@ -420,13 +430,106 @@ export class GoogleOAuthService {
       };
     }
 
+    let email = account.email ?? null;
+    let googleUserId = account.googleUserId ?? null;
+    try {
+      const tokenResponse = await this.getAccessTokenForUser(userId);
+      const profile = await this.fetchGoogleProfile(tokenResponse.accessToken);
+      if (profile?.email) {
+        email = profile.email;
+        googleUserId = profile.id ?? profile.sub ?? googleUserId;
+        const updateData: Prisma.GoogleAccountUpdateInput = {};
+        if (email !== account.email) {
+          updateData.email = email;
+        }
+        if (googleUserId && googleUserId !== account.googleUserId) {
+          updateData.googleUserId = googleUserId;
+        }
+        if (Object.keys(updateData).length > 0) {
+          await this.prisma.googleAccount.update({
+            where: { userId },
+            data: updateData
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`Nao foi possivel atualizar email da conta Google: ${error}`);
+    }
+
     return {
       connected: true,
-      email: account.email ?? account.user?.email ?? null,
+      email: email ?? account.user?.email ?? null,
       scope: account.scope ?? null,
       expiresAt: account.expiryDate ? account.expiryDate.toISOString() : null,
       hasRefreshToken: Boolean(account.refreshToken),
       lastSyncedAt: account.updatedAt ? account.updatedAt.toISOString() : null
+    };
+  }
+
+  /**
+   * Remove completamente a conexao Google do usuario.
+   */
+  async disconnect(userId: string): Promise<void> {
+    const account = await this.prisma.googleAccount.findUnique({
+      where: { userId }
+    });
+
+    if (!account) {
+      return;
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.googleOAuthState.deleteMany({
+        where: { userId }
+      });
+
+      await tx.googleAccount.delete({
+        where: { userId }
+      });
+    });
+  }
+
+  private async fetchGoogleProfile(
+    accessToken: string
+  ): Promise<{ email?: string | null; id?: string | null; sub?: string | null } | null> {
+    const fetchFn = (globalThis as { fetch?: (input: string, init?: unknown) => Promise<any> }).fetch;
+
+    if (!fetchFn) {
+      return null;
+    }
+
+    let response: any;
+    try {
+      response = await fetchFn('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+    } catch (error) {
+      this.logger.warn(`Falha ao consultar perfil do Google: ${error}`);
+      return null;
+    }
+
+    if (!response?.ok) {
+      return null;
+    }
+
+    let payload: Record<string, unknown> | null = null;
+    try {
+      payload = await response.json();
+    } catch (error) {
+      this.logger.warn(`Falha ao interpretar perfil do Google: ${error}`);
+      return null;
+    }
+
+    if (!payload) {
+      return null;
+    }
+
+    return {
+      email: typeof payload.email === 'string' ? payload.email : null,
+      id: typeof payload.id === 'string' ? payload.id : null,
+      sub: typeof payload.sub === 'string' ? payload.sub : null
     };
   }
 }

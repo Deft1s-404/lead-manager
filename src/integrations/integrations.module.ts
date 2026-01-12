@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ClientsModule } from '../clients/clients.module';
 import { LeadsModule } from '../leads/leads.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { UsersModule } from '../users/users.module';
 import { IntegrationsController } from './integrations.controller';
 import { IntegrationsService } from './integrations.service';
 import { GoogleOAuthController } from './google-oauth.controller';
@@ -25,7 +26,7 @@ import { PaypalTransactionsController } from './paypal-transactions.controller';
  * Em produção basta manter este módulo importado para disponibilizar os endpoints /api/google/*
  */
 @Module({
-  imports: [ConfigModule.forFeature(paypalConfig), ClientsModule, LeadsModule, PrismaModule],
+  imports: [ConfigModule.forFeature(paypalConfig), ClientsModule, LeadsModule, PrismaModule, UsersModule],
   controllers: [
     IntegrationsController,
     GoogleOAuthController,

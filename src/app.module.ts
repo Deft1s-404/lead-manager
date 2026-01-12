@@ -15,6 +15,7 @@ import { IntegrationsModule } from './integrations/integrations.module';
 import { LeadsModule } from './leads/leads.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReportsModule } from './reports/reports.module';
+import { SellersModule } from './sellers/sellers.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { UsersModule } from './users/users.module';
     LeadsModule,
     AppointmentsModule,
     CampaignsModule,
+    SellersModule,
     ReportsModule,
     FunnelEventsModule,
     IntegrationsModule,

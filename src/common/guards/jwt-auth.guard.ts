@@ -3,10 +3,11 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { TenantService } from '../services/tenant.service';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  constructor(private readonly reflector: Reflector) {
+  constructor(private readonly reflector: Reflector, private readonly tenantService: TenantService) {
     super();
   }
 
@@ -18,6 +19,20 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     if (isPublic) {
       return true;
+    }
+
+    const request = context.switchToHttp().getRequest();
+    const tenantHeader = request.headers['x-tenant-key'];
+    const tenantKey = Array.isArray(tenantHeader) ? tenantHeader[0] : tenantHeader;
+
+    if (tenantKey) {
+      return this.tenantService.resolveByApiKey(tenantKey).then((tenant) => {
+        request.user = {
+          userId: tenant.userId,
+          email: tenant.email
+        };
+        return true;
+      });
     }
 
     return super.canActivate(context);

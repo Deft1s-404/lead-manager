@@ -18,4 +18,11 @@ export class UsersRepository {
   findById(id: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { id } });
   }
+
+  findApiKeyById(id: string): Promise<{ apiKey: string } | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: { apiKey: true }
+    });
+  }
 }

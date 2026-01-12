@@ -6,6 +6,8 @@ import {
   NotFoundException
 } from '@nestjs/common';
 
+import { Prisma } from '@prisma/client';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { EvolutionInstanceSummary, EvolutionService } from './evolution.service';
 
@@ -985,6 +987,47 @@ export class EvolutionIntegrationService {
   private buildInstanceName(userId: string): string {
     const suffix = userId.slice(-6);
     return `clinic-${suffix}`;
+  }
+
+  async findInstanceOwner(query: {
+    instanceId?: string;
+    providerInstanceId?: string;
+    phoneNumber?: string;
+  }): Promise<{ userId: string; instanceId: string; providerInstanceId: string | null } | null> {
+    const orConditions: Prisma.EvolutionInstanceWhereInput[] = [];
+
+    if (query.instanceId) {
+      orConditions.push({ instanceId: query.instanceId });
+    }
+
+    if (query.providerInstanceId) {
+      orConditions.push({ providerInstanceId: query.providerInstanceId });
+    }
+
+    if (query.phoneNumber) {
+      orConditions.push({
+        metadata: { path: ['number'], equals: query.phoneNumber }
+      });
+    }
+
+    if (!orConditions.length) {
+      return null;
+    }
+
+    const record = await this.evolutionModel().findFirst({
+      where: { OR: orConditions },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    if (!record) {
+      return null;
+    }
+
+    return {
+      userId: record.userId,
+      instanceId: record.instanceId,
+      providerInstanceId: record.providerInstanceId
+    };
   }
 }
 

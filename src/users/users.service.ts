@@ -18,4 +18,9 @@ export class UsersService {
   findById(id: string): Promise<User | null> {
     return this.usersRepository.findById(id);
   }
+
+  async findApiKeyById(id: string): Promise<string | null> {
+    const result = await this.usersRepository.findApiKeyById(id);
+    return result?.apiKey ?? null;
+  }
 }

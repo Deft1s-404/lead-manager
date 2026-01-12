@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpException,
@@ -64,6 +65,15 @@ export class GoogleOAuthController {
   @Get('status')
   getStatus(@CurrentUser() user: AuthenticatedUser): Promise<GoogleOAuthConnectionStatus> {
     return this.googleOAuthService.getConnectionStatus(user.userId);
+  }
+
+  /**
+   * Remove a agenda Google conectada do usuario atual.
+   */
+  @Delete('disconnect')
+  async disconnect(@CurrentUser() user: AuthenticatedUser): Promise<{ success: true }> {
+    await this.googleOAuthService.disconnect(user.userId);
+    return { success: true };
   }
 
   /**

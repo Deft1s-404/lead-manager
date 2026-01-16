@@ -1,14 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Lead, LeadStage, Prisma } from '@prisma/client';
+import { Appointment, Lead, LeadStage, Prisma } from '@prisma/client';
 
 import { calculateLeadScore } from '../common/utils/lead-scoring.util';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { LeadsQuery, LeadsRepository, PaginatedLeads } from './leads.repository';
+import { LeadStatusWebhookService } from './lead-status-webhook.service';
+
+interface UpdateLeadOptions {
+  relatedAppointment?: Appointment | null;
+}
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly leadsRepository: LeadsRepository) {}
+  constructor(
+    private readonly leadsRepository: LeadsRepository,
+    private readonly leadStatusWebhookService: LeadStatusWebhookService
+  ) {}
 
   list(userId: string, query: LeadsQuery): Promise<PaginatedLeads> {
     return this.leadsRepository.findMany(userId, query);
@@ -45,7 +53,7 @@ export class LeadsService {
     return this.leadsRepository.create(userId, data);
   }
 
-  async update(userId: string, id: string, dto: UpdateLeadDto): Promise<Lead> {
+  async update(userId: string, id: string, dto: UpdateLeadDto, options?: UpdateLeadOptions): Promise<Lead> {
     const lead = await this.findById(userId, id);
     const stage = dto.stage ?? lead.stage;
 
@@ -64,7 +72,18 @@ export class LeadsService {
       score
     };
 
-    return this.leadsRepository.update(id, data);
+    const updatedLead = await this.leadsRepository.update(id, data);
+
+    if (dto.stage && dto.stage !== lead.stage) {
+      await this.leadStatusWebhookService.notifyLeadStageChange({
+        userId,
+        lead: updatedLead,
+        newStage: dto.stage,
+        appointment: options?.relatedAppointment ?? null
+      });
+    }
+
+    return updatedLead;
   }
 
   async delete(userId: string, id: string): Promise<Lead> {

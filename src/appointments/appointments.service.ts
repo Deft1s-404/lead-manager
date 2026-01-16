@@ -66,7 +66,12 @@ export class AppointmentsService {
 
     if (dto.leadStage) {
       const targetLeadId = dto.leadId ?? appointment.leadId;
-      await this.leadsService.update(userId, targetLeadId, { stage: dto.leadStage });
+      await this.leadsService.update(
+        userId,
+        targetLeadId,
+        { stage: dto.leadStage },
+        { relatedAppointment: updatedAppointment }
+      );
     }
 
     return updatedAppointment;

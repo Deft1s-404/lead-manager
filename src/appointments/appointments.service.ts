@@ -31,7 +31,6 @@ export class AppointmentsService {
   async create(userId: string, dto: CreateAppointmentDto): Promise<Appointment> {
     await this.leadsService.findById(userId, dto.leadId);
     const status = dto.status ?? AppointmentStatus.AGENDADA;
-
     const appointment = await this.appointmentsRepository.create(userId, {
       leadId: dto.leadId,
       start: new Date(dto.start),
@@ -47,7 +46,6 @@ export class AppointmentsService {
   async update(userId: string, id: string, dto: UpdateAppointmentDto): Promise<Appointment> {
     const appointment = await this.findById(userId, id);
     const status = dto.status ?? appointment.status;
-
     if (dto.leadId) {
       await this.leadsService.findById(userId, dto.leadId);
     }
@@ -64,7 +62,14 @@ export class AppointmentsService {
       data.lead = { connect: { id: dto.leadId } };
     }
 
-    return this.appointmentsRepository.update(id, data);
+    const updatedAppointment = await this.appointmentsRepository.update(id, data);
+
+    if (dto.leadStage) {
+      const targetLeadId = dto.leadId ?? appointment.leadId;
+      await this.leadsService.update(userId, targetLeadId, { stage: dto.leadStage });
+    }
+
+    return updatedAppointment;
   }
 
   async delete(userId: string, id: string): Promise<Appointment> {

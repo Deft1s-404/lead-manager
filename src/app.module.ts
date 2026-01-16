@@ -17,6 +17,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ReportsModule } from './reports/reports.module';
 import { SellersModule } from './sellers/sellers.module';
 import { UsersModule } from './users/users.module';
+import { SellerAvailabilityModule } from './seller-availability/seller-availability.module';
 
 @Module({
   imports: [
@@ -34,7 +35,8 @@ import { UsersModule } from './users/users.module';
     ReportsModule,
     FunnelEventsModule,
     IntegrationsModule,
-    CommonModule
+    CommonModule,
+    SellerAvailabilityModule
   ],
   providers: [
     {

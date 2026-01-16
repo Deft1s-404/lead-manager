@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Appointment, AppointmentStatus, Prisma } from '@prisma/client';
+import { Appointment, AppointmentStatus, LeadStage, Prisma } from '@prisma/client';
 
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -17,6 +17,7 @@ export interface PaginatedAppointments {
       name: string | null;
       email: string | null;
       contact: string | null;
+      stage: LeadStage | null;
     };
   })[];
   total: number;
@@ -61,7 +62,8 @@ export class AppointmentsRepository {
               id: true,
               name: true,
               email: true,
-              contact: true
+              contact: true,
+              stage: true
             }
           }
         },

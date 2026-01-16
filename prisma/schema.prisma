@@ -58,7 +58,6 @@ model User {
   googleAccount       GoogleAccount?
   googleOAuthStates   GoogleOAuthState[]
   leads               Lead[]
-  passwordResetTokens PasswordResetToken[]
   paypalAccount       PaypalAccount?
   paypalOAuthStates   PaypalOAuthState[]
   paypalTransactions  PaypalTransaction[]
@@ -151,19 +150,36 @@ model Lead {
 model Seller {
   id                    String   @id @default(cuid())
   name                  String
-  email                 String?
+  email                 String   @unique
+  password              String
+  mustChangePassword    Boolean  @default(true) @map("must_change_password")
   contactNumber         String?  @map("contact_number")
   userId                String
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
-  availabilityStartDay  WeekDay? @map("availability_start_day")
-  availabilityEndDay    WeekDay? @map("availability_end_day")
-  availabilityStartTime String?  @map("availability_start_time")
-  availabilityEndTime   String?  @map("availability_end_time")
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordResetTokens   PasswordResetToken[]
+  availabilitySlots     SellerAvailability[]
 
   @@index([userId])
   @@map("sellers")
+}
+
+model SellerAvailability {
+  id        String   @id @default(cuid())
+  sellerId  String
+  day       WeekDay
+  dayOfMonth Int?    @map("day_of_month")
+  specificDate DateTime? @map("specific_date")
+  startTime String
+  endTime   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  seller    Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId, day])
+  @@index([sellerId, dayOfMonth])
+  @@map("seller_availability")
 }
 
 model AgentPrompt {
@@ -348,14 +364,14 @@ model PaypalTransaction {
 
 model PasswordResetToken {
   id        String    @id @default(cuid())
-  userId    String
+  sellerId  String
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seller    Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([sellerId])
   @@index([expiresAt])
 }
 
@@ -372,11 +388,12 @@ enum LeadStage {
   AGENDOU_CALL @map("Agendou uma call")
   ENTROU_CALL  @map("Entrou na call")
   COMPROU      @map("Comprou")
+  NO_SHOW      @map("Não compareceu")
 }
 
 enum AppointmentStatus {
   AGENDADA @map("Agendada")
-  NO_SHOW  @map("Não compareceu")
+  REMARCADO @map("Remarcado")
 }
 
 enum CampaignStatus {

@@ -24,8 +24,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const request = context.switchToHttp().getRequest();
     const tenantHeader = request.headers['x-tenant-key'];
     const tenantKey = Array.isArray(tenantHeader) ? tenantHeader[0] : tenantHeader;
+    const authHeader = request.headers['authorization'];
+    const hasBearerAuth = !!(Array.isArray(authHeader) ? authHeader[0] : authHeader);
 
-    if (tenantKey) {
+    if (tenantKey && !hasBearerAuth) {
       return this.tenantService.resolveByApiKey(tenantKey).then((tenant) => {
         request.user = {
           userId: tenant.userId,

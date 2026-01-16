@@ -1,11 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Seller } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
+const sellerSelect = {
+  id: true,
+  name: true,
+  email: true,
+  contactNumber: true,
+  createdAt: true,
+  updatedAt: true
+} as const;
+
+export type SellerSummary = Prisma.SellerGetPayload<{ select: typeof sellerSelect }>;
+
 export interface PaginatedSellers {
-  data: Seller[];
+  data: SellerSummary[];
   total: number;
   page: number;
   limit: number;
@@ -36,7 +47,8 @@ export class SellersRepository {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        select: sellerSelect
       }),
       this.prisma.seller.count({ where })
     ]);
@@ -44,28 +56,32 @@ export class SellersRepository {
     return { data, total, page, limit };
   }
 
-  findById(userId: string, id: string): Promise<Seller | null> {
+  findById(userId: string, id: string): Promise<SellerSummary | null> {
     return this.prisma.seller.findFirst({
-      where: { id, userId }
+      where: { id, userId },
+      select: sellerSelect
     });
   }
 
-  create(userId: string, data: Omit<Prisma.SellerUncheckedCreateInput, 'userId'>): Promise<Seller> {
+  create(userId: string, data: Omit<Prisma.SellerUncheckedCreateInput, 'userId'>): Promise<SellerSummary> {
     return this.prisma.seller.create({
-      data: { ...data, userId }
+      data: { ...data, userId },
+      select: sellerSelect
     });
   }
 
-  update(id: string, data: Prisma.SellerUpdateInput): Promise<Seller> {
+  update(id: string, data: Prisma.SellerUpdateInput): Promise<SellerSummary> {
     return this.prisma.seller.update({
       where: { id },
-      data
+      data,
+      select: sellerSelect
     });
   }
 
-  delete(id: string): Promise<Seller> {
+  delete(id: string): Promise<SellerSummary> {
     return this.prisma.seller.delete({
-      where: { id }
+      where: { id },
+      select: sellerSelect
     });
   }
 }

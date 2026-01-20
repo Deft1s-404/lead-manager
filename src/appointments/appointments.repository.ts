@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Appointment, AppointmentStatus, LeadStage, Prisma } from '@prisma/client';
 
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
+import { parseRangeEnd, parseRangeStart } from '../common/utils/date.util';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface AppointmentQuery extends PaginationQueryDto {
@@ -31,13 +32,15 @@ export class AppointmentsRepository {
 
   async findMany(userId: string, query: AppointmentQuery): Promise<PaginatedAppointments> {
     const { page = 1, limit = 20, status, start, end, search } = query;
+    const parsedStart = start ? parseRangeStart(start) : undefined;
+    const parsedEnd = end ? parseRangeEnd(end) : undefined;
     const where: Prisma.AppointmentWhereInput = {
       userId,
       ...(status ? { status } : {}),
-      ...(start || end
+      ...(parsedStart || parsedEnd
         ? {
-            start: start ? { gte: new Date(start) } : undefined,
-            end: end ? { lte: new Date(end) } : undefined
+            start: parsedStart ? { gte: parsedStart } : undefined,
+            end: parsedEnd ? { lte: parsedEnd } : undefined
           }
         : {}),
       ...(search

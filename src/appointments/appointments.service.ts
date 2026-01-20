@@ -2,6 +2,7 @@
 import { Appointment, AppointmentStatus, Prisma } from '@prisma/client';
 
 import { LeadsService } from '../leads/leads.service';
+import { parseDateInput } from '../common/utils/date.util';
 import { AppointmentsRepository, PaginatedAppointments } from './appointments.repository';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { ListAppointmentsDto } from './dto/list-appointments.dto';
@@ -31,10 +32,12 @@ export class AppointmentsService {
   async create(userId: string, dto: CreateAppointmentDto): Promise<Appointment> {
     await this.leadsService.findById(userId, dto.leadId);
     const status = dto.status ?? AppointmentStatus.AGENDADA;
+    const start = parseDateInput(dto.start);
+    const end = parseDateInput(dto.end);
     const appointment = await this.appointmentsRepository.create(userId, {
       leadId: dto.leadId,
-      start: new Date(dto.start),
-      end: new Date(dto.end),
+      start,
+      end,
       status,
       meetLink: dto.meetLink ?? null,
       googleEventId: dto.googleEventId ?? null
@@ -52,8 +55,8 @@ export class AppointmentsService {
 
     const data: Prisma.AppointmentUpdateInput = {
       status,
-      start: dto.start ? new Date(dto.start) : undefined,
-      end: dto.end ? new Date(dto.end) : undefined,
+      start: dto.start ? parseDateInput(dto.start) : undefined,
+      end: dto.end ? parseDateInput(dto.end) : undefined,
       meetLink: dto.meetLink ?? undefined,
       googleEventId: dto.googleEventId ?? undefined
     };
